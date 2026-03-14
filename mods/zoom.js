@@ -400,14 +400,9 @@
           evt = evt.touches[0];
           isMobile = true;
         }
-        const rect = canvas2.getBoundingClientRect();
         const clx = evt.clientX;
         const cly = evt.clientY;
-        let x = (clx - rect.left) / this.scale();
-        let y = (cly - rect.top) / this.scale();
-        x = Math.floor(x / canvas2.clientWidth * (width + 1));
-        y = Math.floor(y / canvas2.clientHeight * (height + 1));
-        return { x, y };
+        return this.mouse_to_world(clx, cly);
       };
       const wheel_handler = (e) => {
         e.preventDefault();
@@ -436,6 +431,15 @@
         this.zoom_panning = [0, 0];
         this.update();
       });
+    }
+    mouse_to_world(x, y) {
+      const rect = canvas.getBoundingClientRect();
+      const x_scaled = (x - rect.left) / this.scale();
+      const y_scaled = (y - rect.top) / this.scale();
+      return {
+        x: Math.floor(x_scaled / canvas.clientWidth * (width + 1)),
+        y: Math.floor(y_scaled / canvas.clientHeight * (height + 1))
+      };
     }
     handle_zoom(direction) {
       if (this.settings.zoom.value == 0) {
@@ -639,6 +643,11 @@
     }
   };
 
+  // src/worldedit_interop.ts
+  function patch_worldedit(handler) {
+    mousePosToWorldPos = ({ x, y }) => handler.mouse_to_world(x, y);
+  }
+
   // src/main.ts
   dependOn("betterSettings.js", () => {
     const on_change = { cb: () => {
@@ -646,7 +655,8 @@
     const settings_manager = new CustomSettingsManager(on_change);
     runAfterLoad(() => {
       const patcher = new Patcher(settings_manager);
-      new Handler(settings_manager, patcher);
+      const handler = new Handler(settings_manager, patcher);
+      dependOn("worldEdit.js", () => patch_worldedit(handler));
       on_change.cb = () => patcher.update_from_settings();
     });
   }, true);
